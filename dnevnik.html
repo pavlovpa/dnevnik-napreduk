@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#AD1548">
+<title>Дневник за напредък</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --raspberry:#AD1548;
+    --raspberry-dark:#8a1039;
+    --raspberry-light:#f6dfe6;
+    --ink:#1f2430;
+    --muted:#6b7280;
+    --bg:#f4f5f7;
+    --card:#ffffff;
+    --border:#e6e7eb;
+    --green:#1c8a5a;
+    --amber:#c98a12;
+    --red:#c62828;
+    --radius:16px;
+    --shadow:0 2px 10px rgba(20,20,30,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding-bottom:78px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;}
+  header.top{
+    background:linear-gradient(135deg,var(--raspberry),var(--raspberry-dark));
+    color:#fff;padding:22px 18px 20px;
+    border-radius:0 0 22px 22px;
+    box-shadow:var(--shadow);
+  }
+  header.top h1{margin:0;font-size:1.35rem;font-weight:700;}
+  header.top p{margin:4px 0 0;font-size:.82rem;opacity:.9;}
+  main{padding:14px 14px 10px;}
+  .view{display:none;}
+  .view.active{display:block;animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px;box-shadow:var(--shadow);
+  }
+  .card h2{margin:0 0 10px;font-size:1rem;color:var(--raspberry-dark);}
+  .card h3{margin:0 0 8px;font-size:.9rem;color:var(--muted);font-weight:600;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat{
+    background:var(--raspberry-light);border-radius:12px;padding:12px;text-align:center;
+  }
+  .stat .val{font-size:1.35rem;font-weight:700;color:var(--raspberry-dark);}
+  .stat .lbl{font-size:.72rem;color:var(--muted);margin-top:2px;}
+
+  .progress-wrap{margin-top:12px;}
+  .progress-bar{height:14px;background:#eee;border-radius:20px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--raspberry),var(--green));border-radius:20px;transition:width .4s ease;}
+  .progress-labels{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:6px;}
+
+  .banner{
+    border-radius:12px;padding:10px 12px;font-size:.83rem;margin-bottom:14px;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .banner.warn{background:#fff4e5;color:#8a5a00;border:1px solid #f3d9a4;}
+  .banner.info{background:#e9f0ff;color:#1a3d8f;border:1px solid #c8d8fb;}
+
+  label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px;font-weight:600;}
+  input[type=date], input[type=number], input[type=text], select, textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
+    font-size:1rem;background:#fbfbfc;color:var(--ink);
+  }
+  textarea{resize:vertical;min-height:60px;font-family:inherit;}
+  input[type=range]{width:100%;}
+  .range-row{display:flex;align-items:center;gap:10px;}
+  .range-row output{font-weight:700;color:var(--raspberry-dark);min-width:20px;text-align:center;}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:12px 16px;border-radius:12px;border:none;font-size:.95rem;font-weight:700;
+    cursor:pointer;width:100%;margin-top:14px;
+  }
+  .btn.primary{background:var(--raspberry);color:#fff;}
+  .btn.primary:active{background:var(--raspberry-dark);}
+  .btn.secondary{background:#eef0f3;color:var(--ink);}
+  .btn.danger{background:#fdeaea;color:var(--red);}
+  .btn.small{width:auto;padding:8px 12px;font-size:.8rem;margin-top:0;}
+  .btn-row{display:flex;gap:8px;}
+  .btn-row .btn{margin-top:0;}
+
+  table.history{width:100%;border-collapse:collapse;font-size:.82rem;}
+  table.history th{text-align:left;color:var(--muted);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);}
+  table.history td{padding:8px 4px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .entry-actions{display:flex;gap:6px;}
+  .icon-btn{border:none;background:#f1f2f5;border-radius:8px;padding:6px 8px;font-size:.85rem;cursor:pointer;}
+  .icon-btn.del{background:#fdeaea;}
+  .empty{color:var(--muted);font-size:.85rem;text-align:center;padding:20px 0;}
+
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;}
+  .tag.cardio{background:#e5f3ff;color:#0b5fa5;}
+  .tag.strength{background:#f0e9ff;color:#5b3aa5;}
+  .tag.mix{background:#e6f7ee;color:#187a4a;}
+  .tag.rest{background:#f0f0f0;color:#666;}
+
+  nav.bottom{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#fff;border-top:1px solid var(--border);
+    display:flex;justify-content:space-around;
+    max-width:480px;margin:0 auto;
+    padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+    box-shadow:0 -2px 10px rgba(0,0,0,0.05);
+    z-index:50;
+  }
+  nav.bottom button{
+    background:none;border:none;display:flex;flex-direction:column;align-items:center;
+    gap:2px;font-size:.65rem;color:var(--muted);cursor:pointer;flex:1;padding:4px;
+  }
+  nav.bottom button .ic{font-size:1.25rem;}
+  nav.bottom button.active{color:var(--raspberry);font-weight:700;}
+
+  .chart-box{position:relative;height:220px;margin-top:6px;}
+  .toast{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+    background:#222;color:#fff;padding:10px 18px;border-radius:30px;font-size:.85rem;
+    opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:100;max-width:90%;text-align:center;
+  }
+  .toast.show{opacity:1;}
+  .hint{font-size:.72rem;color:var(--muted);margin-top:6px;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .small-muted{font-size:.75rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <h1>🩺 Дневник за напредък</h1>
+    <p id="headerSub">Тегло, кръвно, тренировки — всичко на едно място</p>
+  </header>
+
+  <main>
+
+    <!-- НАЧАЛО -->
+    <section id="view-home" class="view active">
+      <div id="bpBanner"></div>
+
+      <div class="card">
+        <h2>Обзор</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="val" id="statWeight">–</div><div class="lbl">Текущо тегло (кг)</div></div>
+          <div class="stat"><div class="val" id="statChange">–</div><div class="lbl">Промяна от старта</div></div>
+          <div class="stat"><div class="val" id="statBMI">–</div><div class="lbl">ИТМ (BMI)</div></div>
+          <div class="stat"><div class="val" id="statBP">–</div><div class="lbl">Последно кръвно</div></div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="progress-labels">
+            <span id="progStart">старт</span>
+            <span id="progPct">0%</span>
+            <span id="progTarget">цел</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Тази седмица</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="val" id="statWeekAvgWeight">–</div><div class="lbl">Средно тегло (кг)</div></div>
+          <div class="stat"><div class="val" id="statWeekTrainDays">–</div><div class="lbl">Тренировъчни дни</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Последни записи</h2>
+        <div id="recentList"></div>
+      </div>
+    </section>
+
+    <!-- НОВ ЗАПИС -->
+    <section id="view-entry" class="view">
+      <div class="card">
+        <h2 id="entryFormTitle">Нов запис</h2>
+        <form id="entryForm">
+          <label for="f_date">Дата</label>
+          <input type="date" id="f_date" required>
+
+          <label for="f_weight">Тегло (кг) *</label>
+          <input type="number" step="0.1" min="30" max="300" id="f_weight" placeholder="напр. 114.6" required>
+
+          <div class="row2">
+            <div>
+              <label for="f_sys">Систолично (mmHg)</label>
+              <input type="number" step="1" min="60" max="260" id="f_sys" placeholder="напр. 148">
+            </div>
+            <div>
+              <label for="f_dia">Диастолично (mmHg)</label>
+              <input type="number" step="1" min="40" max="180" id="f_dia" placeholder="напр. 94">
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label for="f_pulse">Пулс (уд/мин)</label>
+              <input type="number" step="1" min="30" max="220" id="f_pulse" placeholder="напр. 78">
+            </div>
+            <div>
+              <label for="f_steps">Стъпки</label>
+              <input type="number" step="1" min="0" id="f_steps" placeholder="напр. 4200">
+            </div>
+          </div>
+
+          <label for="f_training">Тренировка</label>
+          <select id="f_training">
+            <option value="">— избери —</option>
+            <option>Кардио</option>
+            <option>Силова</option>
+            <option>Кардио+Силова</option>
+            <option>Почивка</option>
+          </select>
+
+          <label for="f_duration">Времетраене (мин)</label>
+          <input type="number" step="1" min="0" id="f_duration" placeholder="напр. 35">
+
+          <label for="f_energy">Ниво на енергия</label>
+          <div class="range-row">
+            <input type="range" id="f_energy" min="1" max="5" value="3" oninput="document.getElementById('f_energy_out').textContent=this.value">
+            <output id="f_energy_out">3</output>
+          </div>
+
+          <label for="f_notes">Бележки</label>
+          <textarea id="f_notes" placeholder="самочувствие, болежки, пропуснат ден и причина..."></textarea>
+
+          <button type="submit" class="btn primary">💾 Запази запис</button>
+          <button type="button" class="btn secondary" id="cancelEditBtn" style="display:none;">Отказ на редакция</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ИСТОРИЯ -->
+    <section id="view-history" class="view">
+      <div class="card">
+        <h2>История на записите</h2>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <!-- ГРАФИКИ -->
+    <section id="view-charts" class="view">
+      <div class="card">
+        <h2>Тенденция на теглото</h2>
+        <div class="chart-box"><canvas id="chartWeight"></canvas></div>
+        <p class="hint">Плътна линия: измерено тегло · Пунктир: 7-дневна средна стойност</p>
+      </div>
+      <div class="card">
+        <h2>Кръвно налягане</h2>
+        <div class="chart-box"><canvas id="chartBP"></canvas></div>
+        <p class="hint">Червена пунктирана линия: горна граница на нормата (140/90 mmHg)</p>
+      </div>
+      <div class="card">
+        <h2>Тренировки по седмици</h2>
+        <div class="chart-box"><canvas id="chartTraining"></canvas></div>
+      </div>
+    </section>
+
+    <!-- НАСТРОЙКИ -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h2>Начални данни</h2>
+        <form id="settingsForm">
+          <label for="s_startWeight">Начално тегло (кг)</label>
+          <input type="number" step="0.1" id="s_startWeight">
+
+          <label for="s_targetWeight">Целево тегло (кг)</label>
+          <input type="number" step="0.1" id="s_targetWeight">
+
+          <label for="s_height">Височина (см)</label>
+          <input type="number" step="1" id="s_height">
+
+          <label for="s_startDate">Начална дата</label>
+          <input type="date" id="s_startDate">
+
+          <button type="submit" class="btn primary">💾 Запази настройките</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Резервно копие</h2>
+        <p class="small-muted">Данните се пазят локално в браузъра на устройството ти. За да не ги загубиш при смяна на телефон, браузър или изчистване на кеша, редовно изтегляй резервно копие.</p>
+        <div class="btn-row">
+          <button class="btn secondary" id="exportJsonBtn">⬇️ Изтегли (JSON)</button>
+          <button class="btn secondary" id="exportCsvBtn">⬇️ Изтегли (CSV)</button>
+        </div>
+        <label for="importFile" style="margin-top:14px;">Възстанови от резервно копие (JSON)</label>
+        <input type="file" id="importFile" accept="application/json">
+      </div>
+
+      <div class="card">
+        <h2>Изчистване</h2>
+        <p class="small-muted">Триe всички записи от този дневник. Действието не може да бъде отменено.</p>
+        <button class="btn danger" id="clearAllBtn">🗑️ Изтрий всички данни</button>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottom">
+    <button data-view="home" class="active"><span class="ic">🏠</span>Начало</button>
+    <button data-view="entry"><span class="ic">➕</span>Нов запис</button>
+    <button data-view="history"><span class="ic">📋</span>История</button>
+    <button data-view="charts"><span class="ic">📈</span>Графики</button>
+    <button data-view="settings"><span class="ic">⚙️</span>Настройки</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "dnevnik_napreduk_v1";
+  var editingDate = null; // date string of entry being edited, if any
+
+  var DEFAULT_DATA = {
+    settings: { startWeight: 115, targetWeight: 85, height: 182, startDate: todayISO() },
+    entries: []
+  };
+
+  function todayISO(){
+    var d = new Date();
+    var tz = d.getTimezoneOffset()*60000;
+    return new Date(d - tz).toISOString().slice(0,10);
+  }
+
+  // ---------- persistence ----------
+  function loadData(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(DEFAULT_DATA));
+      var parsed = JSON.parse(raw);
+      if(!parsed.settings) parsed.settings = DEFAULT_DATA.settings;
+      if(!parsed.entries) parsed.entries = [];
+      return parsed;
+    }catch(e){
+      console.error("Load error", e);
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+  }
+
+  function saveData(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return true;
+    }catch(e){
+      console.error("Save error", e);
+      showToast("⚠️ Грешка при запис — паметта на браузъра може да е пълна.");
+      return false;
+    }
+  }
+
+  var state = loadData();
+
+  // ---------- helpers ----------
+  function fmt(n, d){
+    if(n === null || n === undefined || n === "" || isNaN(n)) return "–";
+    return Number(n).toFixed(d===undefined?1:d);
+  }
+  function sortedEntries(){
+    return state.entries.slice().sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  }
+  function entryByDate(date){
+    return state.entries.find(function(e){ return e.date === date; });
+  }
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast._tm);
+    showToast._tm = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+  function weekIndexForDate(dateStr){
+    var start = new Date(state.settings.startDate);
+    var d = new Date(dateStr);
+    var diffDays = Math.floor((d - start) / 86400000);
+    return Math.floor(diffDays/7) + 1;
+  }
+  function trainingTagClass(t){
+    if(t === "Кардио") return "cardio";
+    if(t === "Силова") return "strength";
+    if(t === "Кардио+Силова") return "mix";
+    if(t === "Почивка") return "rest";
+    return "";
+  }
+
+  // ---------- navigation ----------
+  var views = ["home","entry","history","charts","settings"];
+  function showView(name){
+    views.forEach(function(v){
+      document.getElementById("view-"+v).classList.toggle("active", v===name);
+    });
+    document.querySelectorAll("nav.bottom button").forEach(function(btn){
+      btn.classList.toggle("active", btn.dataset.view === name);
+    });
+    if(name === "home") renderHome();
+    if(name === "history") renderHistory();
+    if(name === "charts") renderCharts();
+    if(name === "settings") fillSettingsForm();
+    if(name === "entry" && !editingDate) resetEntryForm();
+  }
+  document.querySelectorAll("nav.bottom button").forEach(function(btn){
+    btn.addEventListener("click", function(){ showView(btn.dataset.view); });
+  });
+
+  // ---------- HOME ----------
+  function renderHome(){
+    var list = sortedEntries();
+    var last = list.length ? list[list.length-1] : null;
+    var start = state.settings.startWeight;
+    var target = state.settings.targetWeight;
+    var height = state.settings.height || 182;
+
+    document.getElementById("statWeight").textContent = last ? fmt(last.weight,1) : "–";
+    if(last){
+      var change = last.weight - start;
+      document.getElementById("statChange").textContent = (change>=0?"+":"") + fmt(change,1) + " кг";
+    } else {
+      document.getElementById("statChange").textContent = "–";
+    }
+    var bmiBase = last ? last.weight : start;
+    var bmi = bmiBase / Math.pow(height/100,2);
+    document.getElementById("statBMI").textContent = fmt(bmi,1);
+
+    var bpBanner = document.getElementById("bpBanner");
+    bpBanner.innerHTML = "";
+    if(last && last.systolic && last.diastolic){
+      document.getElementById("statBP").textContent = last.systolic + "/" + last.diastolic;
+      if(last.systolic >= 140 || last.diastolic >= 90){
+        bpBanner.innerHTML = '<div class="banner warn">⚠️ <div>Последното измерено кръвно (' + last.systolic + '/' + last.diastolic + ' mmHg) е над нормалните стойности. Следи редовно и се консултирай с лекар.</div></div>';
+      }
+    } else {
+      document.getElementById("statBP").textContent = "–";
+    }
+
+    // progress bar
+    var pct = 0;
+    if(start !== target){
+      pct = ((start - (last?last.weight:start)) / (start - target)) * 100;
+    }
+    pct = Math.max(0, Math.min(100, pct));
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progPct").textContent = Math.round(pct) + "%";
+    document.getElementById("progStart").textContent = fmt(start,0) + " кг";
+    document.getElementById("progTarget").textContent = fmt(target,0) + " кг";
+
+    // this week
+    var curWeek = weekIndexForDate(todayISO());
+    var weekEntries = state.entries.filter(function(e){ return weekIndexForDate(e.date) === curWeek; });
+    var weekWeights = weekEntries.map(function(e){return e.weight;}).filter(function(v){return v!==undefined && v!==null && v!=="";});
+    var avgW = weekWeights.length ? weekWeights.reduce(function(a,b){return a+Number(b);},0)/weekWeights.length : null;
+    document.getElementById("statWeekAvgWeight").textContent = avgW ? fmt(avgW,1) : "–";
+    var trainDays = weekEntries.filter(function(e){ return e.duration && Number(e.duration) > 0; }).length;
+    document.getElementById("statWeekTrainDays").textContent = trainDays;
+
+    // recent list (last 5)
+    var recentBox = document.getElementById("recentList");
+    var recent = list.slice(-5).reverse();
+    if(!recent.length){
+      recentBox.innerHTML = '<div class="empty">Все още няма записи. Добави своя първи запис от бутона „Нов запис“.</div>';
+    } else {
+      recentBox.innerHTML = recent.map(function(e){
+        var tag = e.training ? '<span class="tag '+trainingTagClass(e.training)+'">'+e.training+'</span>' : "";
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">' +
+          '<div><strong>'+e.date+'</strong><div class="small-muted">'+fmt(e.weight,1)+' кг' + (e.systolic?(' · '+e.systolic+'/'+e.diastolic+' mmHg'):'') + '</div></div>' +
+          '<div>'+tag+'</div></div>';
+      }).join("");
+    }
+  }
+
+  // ---------- ENTRY FORM ----------
+  var entryForm = document.getElementById("entryForm");
+  var cancelEditBtn = document.getElementById("cancelEditBtn");
+
+  function resetEntryForm(){
+    editingDate = null;
+    document.getElementById("entryFormTitle").textContent = "Нов запис";
+    cancelEditBtn.style.display = "none";
+    entryForm.reset();
+    document.getElementById("f_date").value = todayISO();
+    document.getElementById("f_energy").value = 3;
+    document.getElementById("f_energy_out").textContent = 3;
+  }
+
+  function loadEntryToForm(e){
+    editingDate = e.date;
+    document.getElementById("entryFormTitle").textContent = "Редакция на запис — " + e.date;
+    cancelEditBtn.style.display = "block";
+    document.getElementById("f_date").value = e.date;
+    document.getElementById("f_weight").value = e.weight != null ? e.weight : "";
+    document.getElementById("f_sys").value = e.systolic != null ? e.systolic : "";
+    document.getElementById("f_dia").value = e.diastolic != null ? e.diastolic : "";
+    document.getElementById("f_pulse").value = e.pulse != null ? e.pulse : "";
+    document.getElementById("f_steps").value = e.steps != null ? e.steps : "";
+    document.getElementById("f_training").value = e.training || "";
+    document.getElementById("f_duration").value = e.duration != null ? e.duration : "";
+    document.getElementById("f_energy").value = e.energy || 3;
+    document.getElementById("f_energy_out").textContent = e.energy || 3;
+    document.getElementById("f_notes").value = e.notes || "";
+    showView("entry");
+  }
+
+  cancelEditBtn.addEventListener("click", resetEntryForm);
+
+  entryForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var date = document.getElementById("f_date").value;
+    var weight = parseFloat(document.getElementById("f_weight").value);
+    if(!date || isNaN(weight)){
+      showToast("Моля, попълни дата и тегло.");
+      return;
+    }
+    var entry = {
+      date: date,
+      weight: weight,
+      systolic: document.getElementById("f_sys").value ? parseInt(document.getElementById("f_sys").value) : null,
+      diastolic: document.getElementById("f_dia").value ? parseInt(document.getElementById("f_dia").value) : null,
+      pulse: document.getElementById("f_pulse").value ? parseInt(document.getElementById("f_pulse").value) : null,
+      steps: document.getElementById("f_steps").value ? parseInt(document.getElementById("f_steps").value) : null,
+      training: document.getElementById("f_training").value || null,
+      duration: document.getElementById("f_duration").value ? parseInt(document.getElementById("f_duration").value) : null,
+      energy: parseInt(document.getElementById("f_energy").value),
+      notes: document.getElementById("f_notes").value || ""
+    };
+
+    var existing = entryByDate(date);
+    if(existing && date !== editingDate){
+      if(!confirm("Вече има запис за " + date + ". Да го презапиша ли?")) return;
+    }
+    state.entries = state.entries.filter(function(e){ return e.date !== date && e.date !== editingDate; });
+    state.entries.push(entry);
+    saveData();
+    showToast("✅ Записът е запазен");
+    resetEntryForm();
+    showView("home");
+  });
+
+  // ---------- HISTORY ----------
+  function renderHistory(){
+    var box = document.getElementById("historyList");
+    var list = sortedEntries().slice().reverse();
+    if(!list.length){
+      box.innerHTML = '<div class="empty">Все още няма записи.</div>';
+      return;
+    }
+    box.innerHTML = list.map(function(e){
+      var tag = e.training ? '<span class="tag '+trainingTagClass(e.training)+'">'+e.training+'</span>' : "";
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+          '<div>' +
+            '<strong>'+e.date+'</strong> ' + tag +
+            '<div class="small-muted" style="margin-top:4px;">' +
+              'Тегло: '+fmt(e.weight,1)+' кг' +
+              (e.systolic?(' · Кръвно: '+e.systolic+'/'+e.diastolic+' mmHg'):'') +
+              (e.pulse?(' · Пулс: '+e.pulse):'') +
+            '</div>' +
+            (e.duration?('<div class="small-muted">Тренировка: '+e.duration+' мин</div>'):'') +
+            (e.steps?('<div class="small-muted">Стъпки: '+e.steps+'</div>'):'') +
+            (e.notes?('<div class="small-muted" style="margin-top:4px;font-style:italic;">"'+escapeHtml(e.notes)+'"</div>'):'') +
+          '</div>' +
+          '<div class="entry-actions">' +
+            '<button class="icon-btn" data-edit="'+e.date+'">✏️</button>' +
+            '<button class="icon-btn del" data-del="'+e.date+'">🗑️</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    box.querySelectorAll("[data-edit]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var e = entryByDate(btn.dataset.edit);
+        if(e) loadEntryToForm(e);
+      });
+    });
+    box.querySelectorAll("[data-del]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(confirm("Да изтрия ли записа за " + btn.dataset.del + "?")){
+          state.entries = state.entries.filter(function(e){ return e.date !== btn.dataset.del; });
+          saveData();
+          renderHistory();
+          showToast("Записът е изтрит");
+        }
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ---------- CHARTS ----------
+  var chartWeightObj, chartBPObj, chartTrainingObj;
+
+  function rollingAvg(arr, key, window){
+    var out = [];
+    for(var i=0;i<arr.length;i++){
+      var from = Math.max(0, i-window+1);
+      var slice = arr.slice(from, i+1).map(function(e){return e[key];}).filter(function(v){return v!=null;});
+      out.push(slice.length ? slice.reduce(function(a,b){return a+Number(b);},0)/slice.length : null);
+    }
+    return out;
+  }
+
+  function renderCharts(){
+    var list = sortedEntries();
+    var labels = list.map(function(e){ return e.date.slice(5); });
+    var weights = list.map(function(e){ return e.weight; });
+    var avg7 = rollingAvg(list, "weight", 7);
+
+    if(chartWeightObj) chartWeightObj.destroy();
+    chartWeightObj = new Chart(document.getElementById("chartWeight"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          { label:"Тегло (кг)", data: weights, borderColor:"#AD1548", backgroundColor:"rgba(173,21,72,0.08)", tension:.25, spanGaps:true, pointRadius:3 },
+          { label:"7-дневна средна", data: avg7, borderColor:"#8a1039", borderDash:[6,4], tension:.25, spanGaps:true, pointRadius:0 }
+        ]
+      },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{boxWidth:12,font:{size:10}}}}, scales:{ y:{ ticks:{font:{size:10}} }, x:{ ticks:{font:{size:9}, maxRotation:60} } } }
+    });
+
+    var sys = list.map(function(e){ return e.systolic; });
+    var dia = list.map(function(e){ return e.diastolic; });
+    if(chartBPObj) chartBPObj.destroy();
+    chartBPObj = new Chart(document.getElementById("chartBP"), {
+      type:"line",
+      data:{
+        labels:labels,
+        datasets:[
+          { label:"Систолично", data:sys, borderColor:"#c62828", tension:.25, spanGaps:true, pointRadius:3 },
+          { label:"Диастолично", data:dia, borderColor:"#1a73e8", tension:.25, spanGaps:true, pointRadius:3 },
+          { label:"Граница 140/90", data:list.map(function(){return 140;}), borderColor:"#c62828", borderDash:[3,3], pointRadius:0, borderWidth:1 }
+        ]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{boxWidth:12,font:{size:10}}}}, scales:{ y:{ ticks:{font:{size:10}} }, x:{ ticks:{font:{size:9}, maxRotation:60} } } }
+    });
+
+    // training days per week
+    var weekMap = {};
+    state.entries.forEach(function(e){
+      var w = weekIndexForDate(e.date);
+      if(!weekMap[w]) weekMap[w] = 0;
+      if(e.duration && Number(e.duration) > 0) weekMap[w] += 1;
+    });
+    var weeks = Object.keys(weekMap).map(Number).sort(function(a,b){return a-b;});
+    if(chartTrainingObj) chartTrainingObj.destroy();
+    chartTrainingObj = new Chart(document.getElementById("chartTraining"), {
+      type:"bar",
+      data:{ labels: weeks.map(function(w){return "Седм. "+w;}), datasets:[{ label:"Тренировъчни дни", data: weeks.map(function(w){return weekMap[w];}), backgroundColor:"#AD1548" }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, ticks:{stepSize:1,font:{size:10}} }, x:{ ticks:{font:{size:9}} } } }
+    });
+  }
+
+  // ---------- SETTINGS ----------
+  function fillSettingsForm(){
+    document.getElementById("s_startWeight").value = state.settings.startWeight;
+    document.getElementById("s_targetWeight").value = state.settings.targetWeight;
+    document.getElementById("s_height").value = state.settings.height;
+    document.getElementById("s_startDate").value = state.settings.startDate;
+  }
+
+  document.getElementById("settingsForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    state.settings.startWeight = parseFloat(document.getElementById("s_startWeight").value) || state.settings.startWeight;
+    state.settings.targetWeight = parseFloat(document.getElementById("s_targetWeight").value) || state.settings.targetWeight;
+    state.settings.height = parseFloat(document.getElementById("s_height").value) || state.settings.height;
+    state.settings.startDate = document.getElementById("s_startDate").value || state.settings.startDate;
+    saveData();
+    showToast("✅ Настройките са запазени");
+    showView("home");
+  });
+
+  document.getElementById("clearAllBtn").addEventListener("click", function(){
+    if(confirm("Сигурен ли си? Всички записи ще бъдат изтрити безвъзвратно.")){
+      state.entries = [];
+      saveData();
+      showToast("Всички записи са изтрити");
+      renderHome();
+    }
+  });
+
+  // ---------- EXPORT / IMPORT ----------
+  function downloadBlob(content, filename, mime){
+    var blob = new Blob([content], {type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById("exportJsonBtn").addEventListener("click", function(){
+    downloadBlob(JSON.stringify(state, null, 2), "dnevnik_backup_" + todayISO() + ".json", "application/json");
+    showToast("Изтеглено резервно копие (JSON)");
+  });
+
+  document.getElementById("exportCsvBtn").addEventListener("click", function(){
+    var cols = ["date","weight","systolic","diastolic","pulse","training","duration","steps","energy","notes"];
+    var header = ["Дата","Тегло","Систолично","Диастолично","Пулс","Тренировка","Времетраене","Стъпки","Енергия","Бележки"];
+    var rows = [header.join(",")].concat(sortedEntries().map(function(e){
+      return cols.map(function(c){
+        var v = e[c] == null ? "" : String(e[c]).replace(/"/g,'""');
+        return /[",\n]/.test(v) ? '"'+v+'"' : v;
+      }).join(",");
+    }));
+    downloadBlob(rows.join("\n"), "dnevnik_" + todayISO() + ".csv", "text/csv");
+    showToast("Изтеглен CSV файл");
+  });
+
+  document.getElementById("importFile").addEventListener("change", function(ev){
+    var file = ev.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        if(!parsed.entries) throw new Error("invalid");
+        if(confirm("Възстановяването ще презапише текущите данни в този браузър. Продължи ли?")){
+          state = parsed;
+          saveData();
+          showToast("✅ Данните са възстановени");
+          showView("home");
+        }
+      }catch(e){
+        showToast("⚠️ Невалиден файл за възстановяване");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- init ----------
+  document.getElementById("f_date").value = todayISO();
+  renderHome();
+})();
+</script>
+</body>
+</html>
